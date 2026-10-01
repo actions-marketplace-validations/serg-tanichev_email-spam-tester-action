@@ -1,0 +1,138 @@
+name: Email Spam Tester
+description: Send a real email through your own SMTP relay and fail the build when SPF, DKIM or DMARC breaks or the spam score drops.
+author: Serhii Tanichev
+branding:
+  icon: mail
+  color: green
+
+inputs:
+  smtp-host:
+    description: SMTP relay to send the test email through, the one production uses. Leave empty to only reserve an address (reserve-only) or to check one reserved earlier (slug).
+    required: false
+  smtp-port:
+    description: SMTP port.
+    required: false
+    default: "587"
+  smtp-security:
+    description: "starttls, ssl or none. Default: ssl on port 465, starttls otherwise."
+    required: false
+    default: ""
+  smtp-username:
+    description: SMTP login. Keep it in a secret.
+    required: false
+  smtp-password:
+    description: SMTP password. Keep it in a secret.
+    required: false
+  from:
+    description: The From address production uses, e.g. "Acme Billing <billing@example.com>".
+    required: false
+  subject:
+    description: Subject of the test email. Use the real one; the content checks read it.
+    required: false
+    default: Deliverability check
+  html-file:
+    description: Path to the HTML body (your real template).
+    required: false
+  text-file:
+    description: Path to the plain-text body.
+    required: false
+  eml-file:
+    description: Path to a complete message (.eml) to send as it is, instead of from + subject + bodies. To and Cc are replaced by the test address.
+    required: false
+  placement:
+    description: Also send the email to test mailboxes at email providers and report the folder it landed in (inbox, spam, promotions). Some of these mailboxes are public, so do not send confidential content.
+    required: false
+    default: "false"
+  placement-wait-minutes:
+    description: How long to wait for folder results after the checks are done. Folder results never fail the build.
+    required: false
+    default: "10"
+  min-score:
+    description: Fail when the score (0 to 100) is below this. 0 turns the threshold off.
+    required: false
+    default: "70"
+  fail-on-auth:
+    description: Fail when any authentication check (SPF, DKIM, DMARC, alignment) fails, whatever the score.
+    required: false
+    default: "true"
+  reserve-only:
+    description: Only reserve a test address and return it in outputs, for a later step that sends with your own code. Check it afterwards with the slug input.
+    required: false
+    default: "false"
+  slug:
+    description: Wait for and judge the test reserved earlier with reserve-only.
+    required: false
+  timeout-minutes:
+    description: How long to wait for the email to arrive and be checked (at most 60, the life of a test address).
+    required: false
+    default: "10"
+  lang:
+    description: Language of the report and its fix plan (en, de, fr, es, ... 31 languages).
+    required: false
+    default: en
+  api-url:
+    description: Email Spam Tester API base URL.
+    required: false
+    default: https://email-spam-tester.com
+
+outputs:
+  slug:
+    description: Test identifier.
+    value: ${{ steps.run.outputs.slug }}
+  address:
+    description: The test address (reserve-only).
+    value: ${{ steps.run.outputs.address }}
+  report-url:
+    description: Link to the full report with every check, the quoted standards and the fix plan.
+    value: ${{ steps.run.outputs.report-url }}
+  score:
+    description: Score from 0 to 100.
+    value: ${{ steps.run.outputs.score }}
+  score-classic:
+    description: Classic score from 0 to 10.
+    value: ${{ steps.run.outputs.score-classic }}
+  failed-checks:
+    description: JSON list of the ids of failed checks.
+    value: ${{ steps.run.outputs.failed-checks }}
+  passed:
+    description: '"true" when the email passed the rules above.'
+    value: ${{ steps.run.outputs.passed }}
+
+runs:
+  using: composite
+  steps:
+    - id: run
+      shell: bash
+      run: |
+        # The first interpreter that really runs and is 3.9 or newer; on Windows
+        # "python3" can be the Store stub that only prints a hint.
+        for py in python3 python py; do
+          if command -v "$py" >/dev/null 2>&1 &&
+             "$py" -c 'import sys; sys.exit(sys.version_info < (3, 9))' >/dev/null 2>&1; then
+            exec "$py" "$GITHUB_ACTION_PATH/src/est_action.py"
+          fi
+        done
+        echo "::error::Email Spam Tester needs Python 3.9 or newer on the runner (actions/setup-python)"
+        exit 1
+      env:
+        PYTHONUTF8: "1"
+        PYTHONIOENCODING: utf-8
+        EST_SMTP_HOST: ${{ inputs.smtp-host }}
+        EST_SMTP_PORT: ${{ inputs.smtp-port }}
+        EST_SMTP_SECURITY: ${{ inputs.smtp-security }}
+        EST_SMTP_USERNAME: ${{ inputs.smtp-username }}
+        EST_SMTP_PASSWORD: ${{ inputs.smtp-password }}
+        EST_FROM: ${{ inputs.from }}
+        EST_SUBJECT: ${{ inputs.subject }}
+        EST_HTML_FILE: ${{ inputs.html-file }}
+        EST_TEXT_FILE: ${{ inputs.text-file }}
+        EST_EML_FILE: ${{ inputs.eml-file }}
+        EST_PLACEMENT: ${{ inputs.placement }}
+        EST_PLACEMENT_WAIT_MINUTES: ${{ inputs.placement-wait-minutes }}
+        EST_MIN_SCORE: ${{ inputs.min-score }}
+        EST_FAIL_ON_AUTH: ${{ inputs.fail-on-auth }}
+        EST_RESERVE_ONLY: ${{ inputs.reserve-only }}
+        EST_SLUG: ${{ inputs.slug }}
+        EST_TIMEOUT_MINUTES: ${{ inputs.timeout-minutes }}
+        EST_LANG: ${{ inputs.lang }}
+        EST_API_URL: ${{ inputs.api-url }}
