@@ -92,7 +92,7 @@ With `placement: true` the same email also goes to about 30 test mailboxes at 14
 
 - A test address takes one email and expires after an hour. Each run reserves a new one, and only after the inputs and the template files have been checked, so a typo does not use up a test.
 - The step runs on Python 3.9 or newer, which every GitHub-hosted runner has. On a self-hosted runner without it, add `actions/setup-python` first.
-- A report is public to anyone who has its link, subject and sender included, the way it is on the site. The service deletes the email itself two days after it arrives.
+- A report is public to anyone who has its link, subject and sender included, the way it is on the site. The service deletes the email itself an hour after it arrives, once its checks have run.
 - A check marked `skip` did not apply and counts neither way. When a check could not run on the service's side (a blocklist that timed out), the summary says so and the job is judged on the rest.
 - Free tests are counted per IP, and hosted runners come from shared cloud address ranges. If the service ever answers that the daily limit is used up, the step fails with that message.
 
